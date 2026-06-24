@@ -45,7 +45,7 @@ class SheetsDB:
                 ws.append_row([
                     "ID", "Дата", "Дилер", "Dealer_ID",
                     "Номер машины", "Заявлено (т)", "Факт (т)",
-                    "Расхождение (т)", "Статус", "Время"
+                    "Расхождение (т)", "Статус", "Время", "Group_ID"
                 ])
                 ws.format("A1:J1", {"textFormat": {"bold": True}})
                 logger.info("✅ Лист 'Заявки' создан")
@@ -88,7 +88,7 @@ class SheetsDB:
         except Exception as e:
             logger.error(f"❌ Ошибка ensure_dealer: {e}")
 
-    def add_order(self, dealer_id, dealer_name, car_number, tons_requested):
+    def add_order(self, dealer_id, dealer_name, car_number, tons_requested, group_id=None):
         try:
             ws = self._orders_ws()
             order_id = self._next_order_id(ws)
@@ -257,4 +257,5 @@ class SheetsDB:
             "diff": r.get("Расхождение (т)") or None,
             "status": r.get("Статус"),
             "time": r.get("Время"),
+            "group_id": r.get("Group_ID"),
         }
