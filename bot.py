@@ -484,7 +484,7 @@ async def show_admin_menu(update, context):
         ["📊 Сегодня","🚛 Активные"],
         ["👥 По дилерам","💰 Финансы"],
         ["⚠️ Расхождения","🤖 AI Отчёт"],
-        ["➕ Добавить дилера"],
+        ["📅 Месяц","➕ Добавить дилера"],
     ], resize_keyboard=True)
     msg = update.message or update.callback_query.message
     await msg.reply_text("🏭 Панель директора — Цементный завод", reply_markup=kb)
@@ -494,8 +494,10 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "📊 Сегодня":
         stats = db.get_stats_today()
         await update.message.reply_text(
-            f"📊 {stats['date']}\nЗаявок: {stats['orders']} | Завершено: {stats['done']}\n"
-            f"Тонн: {stats['tons']:.2f} т\nСумма: {fmt_money(stats['sum'])}"
+            f"📊 {stats['date']}\n"
+            f"Заявок: {stats['orders']} | Завершено: {stats['done']}\n"
+            f"Тонн: {stats['tons']:.2f} т | КГ: {int(stats['tons']*1000):,} кг\n"
+            f"Сумма: {fmt_money(stats['sum'])}"
         )
         for o in db.get_orders_by_date(stats['date']):
             await update.message.reply_text(fmt_order(o))
@@ -547,6 +549,19 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("🤖 Генерирую...")
         report = await generate_report(db.get_stats_today(), db.get_all_debts())
         await update.message.reply_text(f"🤖 Отчёт:\n\n{report}")
+    elif text == "📅 Месяц":
+        stats = db.get_stats_month()
+        lines = [
+            f"📅 Месяц {stats['month']}\n",
+            f"Заявок: {stats['orders']} | Завершено: {stats['done']}",
+            f"Тонн: {stats['tons']:.2f} т | КГ: {int(stats['tons']*1000):,} кг",
+            f"Сумма: {stats['sum']:,.0f} сум\n",
+            "👥 По дилерам:"
+        ]
+        for name, d in stats['by_dealer'].items():
+            lines.append(f"• {name}: {d['tons']:.2f} т ({int(d['tons']*1000):,} кг) — {d['sum']:,.0f} сум")
+        await update.message.reply_text("\n".join(lines))
+
     elif text == "➕ Добавить дилера":
         await update.message.reply_text("Команда: /addealer Имя Цена\nПример: /addealer Алишер 850000")
     return ADMIN_MENU
