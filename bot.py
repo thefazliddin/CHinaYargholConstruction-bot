@@ -143,6 +143,51 @@ async def handle_group_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     logger.info(f"Группа [{chat.title}] {user.full_name}: {text[:60]}")
 
+    # Обрабатываем кнопки постоянной клавиатуры
+    if text == "📋 Новая заявка":
+        await update.message.reply_text(
+            "📋 Напишите заявку:\n\n"
+            "Формат: <b>номер_машины количество_тонн</b>\n"
+            "Пример: <b>50711VBA 25 т</b>",
+            parse_mode="HTML"
+        )
+        return
+
+    elif text == "📊 Мои заявки":
+        orders = db.get_dealer_orders(dealer_name, limit=10)
+        if not orders:
+            await update.message.reply_text("У вас ещё нет заявок.")
+        else:
+            await update.message.reply_text(f"📊 Последние заявки ({dealer_name}):")
+            for o in orders:
+                await update.message.reply_text(fmt_order(o))
+        return
+
+    elif text == "🔄 Незавершённые":
+        orders = db.get_dealer_orders(dealer_name, limit=50)
+        active = [o for o in orders if o.get("Статус") in ("Ожидание","Уехал")]
+        if not active:
+            await update.message.reply_text("✅ Нет незавершённых заявок.")
+        else:
+            await update.message.reply_text(f"🔄 Незавершённые ({len(active)}):")
+            for o in active:
+                await update.message.reply_text(fmt_order(o))
+        return
+
+    elif text == "💳 Мой баланс":
+        fin = db.get_dealer_finance(dealer_name)
+        bal = fin["balance"]
+        msg = f"💳 Баланс: {dealer_name}\n\n"
+        if bal < 0:
+            msg += f"🔴 Долг: {fmt_money(abs(bal))}"
+        elif bal > 0:
+            msg += f"🟢 Предоплата: {fmt_money(bal)}"
+        else:
+            msg += "⚪ Баланс: 0"
+        msg += f"\n💰 Цена за тонну: {fmt_money(fin['price'])}"
+        await update.message.reply_text(msg)
+        return
+
     # AI/regex распознаёт заявку
     parsed = await parse_order(text, dealer_name)
     if not parsed.get("car") or not parsed.get("tons"):
