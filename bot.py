@@ -293,6 +293,38 @@ async def handle_group_photo(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_text(msg)
 
+    # Уведомление о долге тебе
+    debt_info = result.get("debt_info")
+    if debt_info and debt_info.get("is_debt"):
+        debt_msg = (
+            f"🔴 ДОЛГ УВЕЛИЧИЛСЯ!\n\n"
+            f"👤 Дилер: {order.get('Дилер')}\n"
+            f"📦 Заявка №{oid} закрыта\n"
+            f"⚖️ {tons} т ({kg} кг)\n"
+            f"💰 Сумма: {fmt_money(result.get('summa',0))}\n\n"
+            f"💳 Был баланс: {fmt_money(debt_info['old_balance'])}\n"
+            f"💳 Стал баланс: {fmt_money(debt_info['new_balance'])}\n"
+            f"🔴 Долг: {fmt_money(debt_info['debt'])}\n\n"
+        )
+        if debt_info.get("debt_increased"):
+            debt_msg += "⚠️ Дилер ушёл в минус впервые!"
+        else:
+            debt_msg += "⚠️ Долг продолжает расти!"
+        try:
+            await context.bot.send_message(ADMIN_ID, debt_msg)
+        except: pass
+    elif debt_info and not debt_info.get("is_debt"):
+        # Баланс в плюсе — просто информируем
+        try:
+            await context.bot.send_message(
+                ADMIN_ID,
+                f"✅ Заявка №{oid} закрыта\n"
+                f"👤 {order.get('Дилер')}\n"
+                f"⚖️ {tons} т | 💰 {fmt_money(result.get('summa',0))}\n"
+                f"💳 Остаток предоплаты: {fmt_money(debt_info['new_balance'])}"
+            )
+        except: pass
+
     # Показываем меню снова
     dealer = db.get_dealer_by_group(str(chat.id))
     dealer_name = dealer["Имя"] if dealer else ""
@@ -348,8 +380,32 @@ async def handle_weight_channel(update: Update, context: ContextTypes.DEFAULT_TY
         msg += f"💰 {fmt_money(result['summa'])}\n"
     if abs(diff_kg) > 50:
         msg += f"⚠️ Расхождение: {diff_kg:+} кг"
+
+    # Добавляем инфо о балансе
+    debt_info = result.get("debt_info")
+    if debt_info:
+        if debt_info.get("is_debt"):
+            msg += f"\n🔴 Долг: {fmt_money(debt_info['debt'])}"
+        else:
+            msg += f"\n🟢 Предоплата: {fmt_money(debt_info['new_balance'])}"
+
     try: await context.bot.send_message(ADMIN_ID, msg)
     except: pass
+
+    # Отдельное уведомление если долг вырос
+    if debt_info and debt_info.get("is_debt"):
+        debt_msg = (
+            f"🔴 ДОЛГ УВЕЛИЧИЛСЯ!\n\n"
+            f"👤 {order.get('Дилер')}\n"
+            f"📦 Заявка №{oid}\n"
+            f"💰 {fmt_money(result.get('summa',0))}\n\n"
+            f"💳 Был: {fmt_money(debt_info['old_balance'])}\n"
+            f"🔴 Долг: {fmt_money(debt_info['debt'])}\n"
+        )
+        if debt_info.get("debt_increased"):
+            debt_msg += "⚠️ Дилер ушёл в минус!"
+        try: await context.bot.send_message(ADMIN_ID, debt_msg)
+        except: pass
 
 # ════════════════════════════════════════
 # БУХГАЛТЕР
